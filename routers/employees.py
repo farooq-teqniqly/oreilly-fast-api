@@ -1,12 +1,12 @@
-from fastapi import FastAPI, Path
+from fastapi import APIRouter, Path
 
-app = FastAPI()
+router = APIRouter()
 
-@app.get(f"/employees/index")
+@router.get("/index")
 async def index():
     return {"message": "This is the Employees API"}
 
-@app.get("/employees/{id}")
+@router.get("/{id}")
 async def get_employee_by_id(id: int=Path(
     ge=101, 
     le=999,
@@ -15,7 +15,7 @@ async def get_employee_by_id(id: int=Path(
     name = "Bob"
     return {"name": name, "id": id}
 
-@app.get("/employees")
+@router.get("/")
 async def get_employees(is_active: bool=False):
     employees = [
         {"name": "Bob", "is_active": True},
