@@ -7,7 +7,11 @@ async def index():
     return {"message": "This is the Employees API"}
 
 @app.get("/employees/{id}")
-async def get_employee_by_id(id: int=Path(ge=101, le=999)):
+async def get_employee_by_id(id: int=Path(
+    ge=101, 
+    le=999,
+    title="Employee ID",
+    description="ID of the employee",)):
     name = "Bob"
     return {"name": name, "id": id}
 
