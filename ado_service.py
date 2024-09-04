@@ -22,9 +22,9 @@ async def main():
     load_dotenv()
     
     ado_service = AdoService(
-        os.getenv("BASE_ADDRESS"),
-        os.getenv("ORG"), 
-        os.getenv("PAT"))
+        os.getenv("ADO__BASE_ADDRESS"),
+        os.getenv("ADO__ORG"), 
+        os.getenv("ADO__PAT"))
     
     projects = await ado_service.get_projects()
     print(projects)
