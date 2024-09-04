@@ -1,5 +1,11 @@
 import aiohttp
 
+class InvalidPATException(Exception):
+    pass
+
+class InvalidUrlException(Exception):
+    pass
+
 class AdoService:
     def __init__(self, base_address: str, org_name: str, personal_access_token: str):
         self._base_address = base_address
@@ -11,6 +17,12 @@ class AdoService:
             async with session.get(
                 f"{self._base_address}/{self._org_name}/_apis/projects?api-version=7.1-preview.1", 
                 auth=self._auth) as response:
+                
+                if response.status == 203:
+                    raise InvalidPATException("Personal Access Token might be incorrect.")
+                
+                if response.status == 404:
+                    raise InvalidUrlException("ADO REST API url might be incorrect.")
                 
                 return await response.json()
             
