@@ -163,3 +163,4 @@ cython_debug/
 Scripts/
 pyenv.cfg
 pyvenv.cfg
+.idea/
