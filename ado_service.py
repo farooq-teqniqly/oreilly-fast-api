@@ -55,10 +55,12 @@ async def main():
         ado_service.get_projects(),
         ado_service.get_pull_requests(os.getenv("ADO__PROJECT"), os.getenv("ADO__REPO"))
     ]
-    
-    for task in asyncio.as_completed(tasks):
-        data = await task
-        print(f"Task completed")
+
+    results = await asyncio.gather(*tasks)
+
+    for result in results:
+        print(f"Task completed with result: {result}")
+
         
 if __name__ == "__main__":
     import asyncio
