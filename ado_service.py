@@ -1,4 +1,5 @@
 import aiohttp
+from aiohttp import ClientTimeout
 from pydantic import BaseModel, ValidationError, HttpUrl, SecretStr
 
 class AdoServiceException(Exception):
@@ -17,6 +18,7 @@ class AdoServiceConfiguration(BaseModel):
     base_address: HttpUrl
     organization_name: str
     personal_access_token: SecretStr
+    http_timeout: int
 
 class RepositoryContext(BaseModel):
     repository_name: str
@@ -32,10 +34,11 @@ class AdoService:
         self._base_address = config.base_address
         self._org_name = config.organization_name
         self._auth = aiohttp.BasicAuth("", config.personal_access_token.get_secret_value())
+        self._http_timeout = ClientTimeout(config.http_timeout)
         self._http_session = None
 
     async def __aenter__(self):
-        self._http_session = aiohttp.ClientSession(auth=self._auth)
+        self._http_session = aiohttp.ClientSession(auth=self._auth, timeout=self._http_timeout)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -80,6 +83,7 @@ async def main():
         base_address=os.getenv("ADO__BASE_ADDRESS"),
         organization_name=os.getenv("ADO__ORG"),
         personal_access_token=os.getenv("ADO__PAT"),
+        http_timeout=os.getenv("ADO__HTTP_TIMEOUT_SECONDS"),
     )
 
     repository_context = RepositoryContext(
