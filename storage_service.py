@@ -1,19 +1,24 @@
-from azure.storage.blob.aio import BlobServiceClient, ContainerClient
+from azure.storage.blob.aio import BlobServiceClient
 from pydantic import BaseModel, ValidationError
+
 
 class StorageServiceException(Exception):
     pass
 
+
 class StorageServiceArgumentException(StorageServiceException):
     pass
 
+
 class StorageServiceValidationException(StorageServiceException):
     pass
+
 
 class BlobUploadContext(BaseModel):
     content: str
     blob_name: str
     container_name: str
+
 
 class StorageService:
     def __init__(self, connection_string: str):
