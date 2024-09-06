@@ -1,16 +1,33 @@
 import aiohttp
+from pydantic import BaseModel, ValidationError, HttpUrl, SecretStr
 
-class InvalidPATException(Exception):
+class AdoServiceException(Exception):
     pass
 
-class InvalidUrlException(Exception):
+class AdoServiceInvalidPATException(AdoServiceException):
     pass
+
+class AdoServiceInvalidUrlException(AdoServiceException):
+    pass
+
+class AdoServiceValidationException(AdoServiceException):
+    pass
+
+class AdoServiceConfiguration(BaseModel):
+    base_address: HttpUrl
+    organization_name: str
+    personal_access_token: SecretStr
 
 class AdoService:
-    def __init__(self, base_address: str, org_name: str, personal_access_token: str):
-        self._base_address = base_address
-        self._org_name = org_name        
-        self._auth = aiohttp.BasicAuth("", personal_access_token)
+    def __init__(self, config: AdoServiceConfiguration):
+        try:
+            AdoServiceConfiguration.model_validate(config)
+        except ValidationError as e:
+            raise AdoServiceValidationException("AdoServiceConfiguration validation failed") from e
+
+        self._base_address = config.base_address
+        self._org_name = config.org_name
+        self._auth = aiohttp.BasicAuth("", config.personal_access_token)
         
     async def get_projects(self):
         async with aiohttp.ClientSession() as session:
@@ -19,10 +36,10 @@ class AdoService:
                 auth=self._auth) as response:
                 
                 if response.status == 203:
-                    raise InvalidPATException("Personal Access Token might be incorrect.")
+                    raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
                 
                 if response.status == 404:
-                    raise InvalidUrlException("ADO REST API url might be incorrect.")
+                    raise AdoServiceInvalidUrlException("ADO REST API url might be incorrect.")
                 
                 return await response.json()
     
@@ -33,9 +50,9 @@ class AdoService:
                 auth=self._auth) as response:
                 
                 if response.status == 203:
-                    raise InvalidPATException("Personal Access Token might be incorrect.")
+                    raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
                 
                 if response.status == 404:
-                    raise InvalidUrlException("ADO REST API url might be incorrect.")
+                    raise AdoServiceInvalidUrlException("ADO REST API url might be incorrect.")
                 
                 return await response.json()
