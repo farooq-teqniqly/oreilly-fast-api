@@ -32,20 +32,27 @@ class AdoService:
         self._base_address = config.base_address
         self._org_name = config.organization_name
         self._auth = aiohttp.BasicAuth("", config.personal_access_token.get_secret_value())
-        
+        self._http_session = None
+
+    async def __aenter__(self):
+        self._http_session = aiohttp.ClientSession()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self._http_session.close()
+
     async def get_projects(self):
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{self._base_address}/{self._org_name}/_apis/projects?api-version=7.1-preview.1", 
-                auth=self._auth) as response:
-                
-                if response.status == 203:
-                    raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
-                
-                if response.status == 404:
-                    raise AdoServiceInvalidUrlException("ADO REST API url might be incorrect.")
-                
-                return await response.json()
+        async with self._http_session.get(
+            f"{self._base_address}/{self._org_name}/_apis/projects?api-version=7.1-preview.1",
+            auth=self._auth) as response:
+
+            if response.status == 203:
+                raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
+
+            if response.status == 404:
+                raise AdoServiceInvalidUrlException("ADO REST API url might be incorrect.")
+
+            return await response.json()
     
     async def get_pull_requests(self, context: RepositoryContext):
         try:
@@ -53,18 +60,17 @@ class AdoService:
         except ValidationError as e:
             raise AdoServiceValidationException("AdoServiceConfiguration validation failed") from e
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{self._base_address}/{self._org_name}/{context.project_name}/_apis/git/repositories/{context.repository_name}/pullrequests?api-version=7.1-preview.1&$top=1000&searchCriteria.status=All&searchCriteria.minTime=2024-03-01T00:00:00Z&searchCriteria.maxTime=2024-09-0410T00:00:00Z",
-                auth=self._auth) as response:
-                
-                if response.status == 203:
-                    raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
-                
-                if response.status == 404:
-                    raise AdoServiceInvalidUrlException("ADO REST API url might be incorrect.")
+        async with self._http_session.get(
+            f"{self._base_address}/{self._org_name}/{context.project_name}/_apis/git/repositories/{context.repository_name}/pullrequests?api-version=7.1-preview.1&$top=1000&searchCriteria.status=All&searchCriteria.minTime=2024-03-01T00:00:00Z&searchCriteria.maxTime=2024-09-0410T00:00:00Z",
+            auth=self._auth) as response:
 
-                return await response.json()
+            if response.status == 203:
+                raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
+
+            if response.status == 404:
+                raise AdoServiceInvalidUrlException("ADO REST API url might be incorrect.")
+
+            return await response.json()
 
 async def main():
     import os
@@ -78,22 +84,21 @@ async def main():
         personal_access_token=os.getenv("ADO__PAT"),
     )
 
-    ado_service = AdoService(ado_service_config)
-
     repository_context = RepositoryContext(
         repository_name=os.getenv("ADO__REPO"),
         project_name=os.getenv("ADO__PROJECT"),
     )
 
-    tasks = [
-        ado_service.get_projects(),
-        ado_service.get_pull_requests(repository_context),
-    ]
+    async with AdoService(ado_service_config) as ado_service:
+        tasks = [
+            ado_service.get_projects(),
+            ado_service.get_pull_requests(repository_context),
+        ]
 
-    results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks)
 
-    for result in results:
-        print(f"Task completed with result: {result}")
+        for result in results:
+            print(f"Task completed with result: {result}")
 
 
 if __name__ == "__main__":
