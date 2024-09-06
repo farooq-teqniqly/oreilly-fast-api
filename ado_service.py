@@ -35,7 +35,7 @@ class AdoService:
         self._http_session = None
 
     async def __aenter__(self):
-        self._http_session = aiohttp.ClientSession()
+        self._http_session = aiohttp.ClientSession(auth=self._auth)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -43,8 +43,7 @@ class AdoService:
 
     async def get_projects(self):
         async with self._http_session.get(
-            f"{self._base_address}/{self._org_name}/_apis/projects?api-version=7.1-preview.1",
-            auth=self._auth) as response:
+            f"{self._base_address}/{self._org_name}/_apis/projects?api-version=7.1-preview.1") as response:
 
             if response.status == 203:
                 raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
@@ -61,8 +60,7 @@ class AdoService:
             raise AdoServiceValidationException("AdoServiceConfiguration validation failed") from e
 
         async with self._http_session.get(
-            f"{self._base_address}/{self._org_name}/{context.project_name}/_apis/git/repositories/{context.repository_name}/pullrequests?api-version=7.1-preview.1&$top=1000&searchCriteria.status=All&searchCriteria.minTime=2024-03-01T00:00:00Z&searchCriteria.maxTime=2024-09-0410T00:00:00Z",
-            auth=self._auth) as response:
+            f"{self._base_address}/{self._org_name}/{context.project_name}/_apis/git/repositories/{context.repository_name}/pullrequests?api-version=7.1-preview.1&$top=1000&searchCriteria.status=All&searchCriteria.minTime=2024-03-01T00:00:00Z&searchCriteria.maxTime=2024-09-0410T00:00:00Z") as response:
 
             if response.status == 203:
                 raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
