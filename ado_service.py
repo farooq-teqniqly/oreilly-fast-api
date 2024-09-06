@@ -18,7 +18,7 @@ class AdoServiceConfiguration(BaseModel):
     base_address: HttpUrl
     organization_name: str
     personal_access_token: SecretStr
-    http_timeout: int
+    http_timeout: int=60
 
 class RepositoryContext(BaseModel):
     repository_name: str
@@ -79,11 +79,16 @@ async def main():
 
     load_dotenv()
 
+    http_timeout = os.getenv("ADO__HTTP_TIMEOUT_SECONDS")
+
+    if http_timeout is None:
+        http_timeout=60
+
     ado_service_config = AdoServiceConfiguration(
         base_address=os.getenv("ADO__BASE_ADDRESS"),
         organization_name=os.getenv("ADO__ORG"),
         personal_access_token=os.getenv("ADO__PAT"),
-        http_timeout=os.getenv("ADO__HTTP_TIMEOUT_SECONDS"),
+        http_timeout = http_timeout,
     )
 
     repository_context = RepositoryContext(
