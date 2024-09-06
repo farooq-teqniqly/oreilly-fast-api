@@ -26,8 +26,8 @@ class AdoService:
             raise AdoServiceValidationException("AdoServiceConfiguration validation failed") from e
 
         self._base_address = config.base_address
-        self._org_name = config.org_name
-        self._auth = aiohttp.BasicAuth("", config.personal_access_token)
+        self._org_name = config.organization_name
+        self._auth = aiohttp.BasicAuth("", config.personal_access_token.get_secret_value())
         
     async def get_projects(self):
         async with aiohttp.ClientSession() as session:
@@ -56,3 +56,32 @@ class AdoService:
                     raise AdoServiceInvalidUrlException("ADO REST API url might be incorrect.")
                 
                 return await response.json()
+
+async def main():
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    ado_service_config = AdoServiceConfiguration(
+        base_address=os.getenv("ADO__BASE_ADDRESS"),
+        organization_name=os.getenv("ADO__ORG"),
+        personal_access_token=os.getenv("ADO__PAT"),
+    )
+
+    ado_service = AdoService(ado_service_config)
+
+    tasks = [
+        ado_service.get_projects(),
+        ado_service.get_pull_requests(os.getenv("ADO__PROJECT"), os.getenv("ADO__REPO"))
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    for result in results:
+        print(f"Task completed with result: {result}")
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
