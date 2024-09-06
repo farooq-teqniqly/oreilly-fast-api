@@ -18,6 +18,10 @@ class AdoServiceConfiguration(BaseModel):
     organization_name: str
     personal_access_token: SecretStr
 
+class RepositoryContext(BaseModel):
+    repository_name: str
+    project_name: str
+
 class AdoService:
     def __init__(self, config: AdoServiceConfiguration):
         try:
@@ -43,10 +47,15 @@ class AdoService:
                 
                 return await response.json()
     
-    async def get_pull_requests(self, project_name: str, repository_name: str):
+    async def get_pull_requests(self, context: RepositoryContext):
+        try:
+            RepositoryContext.model_validate(context)
+        except ValidationError as e:
+            raise AdoServiceValidationException("AdoServiceConfiguration validation failed") from e
+
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                f"{self._base_address}/{self._org_name}/{project_name}/_apis/git/repositories/{repository_name}/pullrequests?api-version=7.1-preview.1&$top=1000&searchCriteria.status=All&searchCriteria.minTime=2024-03-01T00:00:00Z&searchCriteria.maxTime=2024-09-0410T00:00:00Z", 
+                f"{self._base_address}/{self._org_name}/{context.project_name}/_apis/git/repositories/{context.repository_name}/pullrequests?api-version=7.1-preview.1&$top=1000&searchCriteria.status=All&searchCriteria.minTime=2024-03-01T00:00:00Z&searchCriteria.maxTime=2024-09-0410T00:00:00Z",
                 auth=self._auth) as response:
                 
                 if response.status == 203:
@@ -54,7 +63,7 @@ class AdoService:
                 
                 if response.status == 404:
                     raise AdoServiceInvalidUrlException("ADO REST API url might be incorrect.")
-                
+
                 return await response.json()
 
 async def main():
@@ -71,9 +80,14 @@ async def main():
 
     ado_service = AdoService(ado_service_config)
 
+    repository_context = RepositoryContext(
+        repository_name=os.getenv("ADO__REPO"),
+        project_name=os.getenv("ADO__PROJECT"),
+    )
+
     tasks = [
         ado_service.get_projects(),
-        ado_service.get_pull_requests(os.getenv("ADO__PROJECT"), os.getenv("ADO__REPO"))
+        ado_service.get_pull_requests(repository_context),
     ]
 
     results = await asyncio.gather(*tasks)
