@@ -39,29 +39,3 @@ class AdoService:
                     raise InvalidUrlException("ADO REST API url might be incorrect.")
                 
                 return await response.json()
-            
-async def main():
-    import os
-    from dotenv import load_dotenv
-    
-    load_dotenv()
-    
-    ado_service = AdoService(
-        os.getenv("ADO__BASE_ADDRESS"),
-        os.getenv("ADO__ORG"), 
-        os.getenv("ADO__PAT"))
-    
-    tasks = [
-        ado_service.get_projects(),
-        ado_service.get_pull_requests(os.getenv("ADO__PROJECT"), os.getenv("ADO__REPO"))
-    ]
-
-    results = await asyncio.gather(*tasks)
-
-    for result in results:
-        print(f"Task completed with result: {result}")
-
-        
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
