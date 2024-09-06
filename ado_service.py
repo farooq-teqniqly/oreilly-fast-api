@@ -33,12 +33,10 @@ class AdoService:
 
         self._base_address = config.base_address
         self._org_name = config.organization_name
-        self._auth = aiohttp.BasicAuth("", config.personal_access_token.get_secret_value())
-        self._http_timeout = ClientTimeout(config.http_timeout)
-        self._http_session = None
+        auth = aiohttp.BasicAuth("", config.personal_access_token.get_secret_value())
+        self._http_session = aiohttp.ClientSession(auth=auth, timeout=ClientTimeout(config.http_timeout))
 
     async def __aenter__(self):
-        self._http_session = aiohttp.ClientSession(auth=self._auth, timeout=self._http_timeout)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -60,7 +58,7 @@ class AdoService:
         try:
             RepositoryContext.model_validate(context)
         except ValidationError as e:
-            raise AdoServiceValidationException("AdoServiceConfiguration validation failed") from e
+            raise AdoServiceValidationException("RepositoryContext validation failed") from e
 
         async with self._http_session.get(
             f"{self._base_address}/{self._org_name}/{context.project_name}/_apis/git/repositories/{context.repository_name}/pullrequests?api-version=7.1-preview.1&$top=1000&searchCriteria.status=All&searchCriteria.minTime=2024-03-01T00:00:00Z&searchCriteria.maxTime=2024-09-0410T00:00:00Z") as response:
