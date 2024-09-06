@@ -1,3 +1,5 @@
+from idlelib.window import add_windows_to_menu
+
 import aiohttp
 from aiohttp import ClientTimeout
 from pydantic import BaseModel, ValidationError, HttpUrl, SecretStr
@@ -43,16 +45,8 @@ class AdoService:
         await self._http_session.close()
 
     async def get_projects(self):
-        async with self._http_session.get(
-            f"{self._base_address}/{self._org_name}/_apis/projects?api-version=7.1-preview.1") as response:
-
-            if response.status == 203:
-                raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
-
-            if response.status == 404:
-                raise AdoServiceInvalidUrlException("ADO REST API url might be incorrect.")
-
-            return await response.json()
+        url = f"{self._base_address}/{self._org_name}/_apis/projects?api-version=7.1-preview.1"
+        return await self._make_request(url)
     
     async def get_pull_requests(self, context: RepositoryContext):
         try:
@@ -60,16 +54,21 @@ class AdoService:
         except ValidationError as e:
             raise AdoServiceValidationException("RepositoryContext validation failed") from e
 
-        async with self._http_session.get(
-            f"{self._base_address}/{self._org_name}/{context.project_name}/_apis/git/repositories/{context.repository_name}/pullrequests?api-version=7.1-preview.1&$top=1000&searchCriteria.status=All&searchCriteria.minTime=2024-03-01T00:00:00Z&searchCriteria.maxTime=2024-09-0410T00:00:00Z") as response:
+        url = f"{self._base_address}/{self._org_name}/{context.project_name}/_apis/git/repositories/{context.repository_name}/pullrequests?api-version=7.1-preview.1&$top=1000&searchCriteria.status=All&searchCriteria.minTime=2024-03-01T00:00:00Z&searchCriteria.maxTime=2024-09-0410T00:00:00Z"
+        return await self._make_request(url)
 
-            if response.status == 203:
-                raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
-
-            if response.status == 404:
-                raise AdoServiceInvalidUrlException("ADO REST API url might be incorrect.")
-
-            return await response.json()
+    async def _make_request(self, url: str):
+        try:
+            async with self._http_session.get(url) as response:
+                if response.status == 203:
+                    raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
+                if response.status == 404:
+                    raise AdoServiceInvalidUrlException("ADO REST API URL might be incorrect.")
+                if response.status != 200:
+                    raise AdoServiceException(f"ADO REST API request failed with status: {response.status}")
+                return await response.json()
+        except aiohttp.ClientError as e:
+            raise AdoServiceException(f"ADO REST API request failed") from e
 
 async def main():
     import os
