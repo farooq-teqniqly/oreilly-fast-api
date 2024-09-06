@@ -1,30 +1,35 @@
-from idlelib.window import add_windows_to_menu
-
 import aiohttp
 from aiohttp import ClientTimeout
 from pydantic import BaseModel, ValidationError, HttpUrl, SecretStr
 
+
 class AdoServiceException(Exception):
     pass
+
 
 class AdoServiceInvalidPATException(AdoServiceException):
     pass
 
+
 class AdoServiceInvalidUrlException(AdoServiceException):
     pass
 
+
 class AdoServiceValidationException(AdoServiceException):
     pass
+
 
 class AdoServiceConfiguration(BaseModel):
     base_address: HttpUrl
     organization_name: str
     personal_access_token: SecretStr
-    http_timeout: int=60
+    http_timeout: int = 60
+
 
 class RepositoryContext(BaseModel):
     repository_name: str
     project_name: str
+
 
 class AdoService:
     def __init__(self, config: AdoServiceConfiguration):
@@ -47,14 +52,22 @@ class AdoService:
     async def get_projects(self):
         url = f"{self._base_address}/{self._org_name}/_apis/projects?api-version=7.1-preview.1"
         return await self._make_request(url)
-    
+
     async def get_pull_requests(self, context: RepositoryContext):
         try:
             RepositoryContext.model_validate(context)
         except ValidationError as e:
             raise AdoServiceValidationException("RepositoryContext validation failed") from e
 
-        url = f"{self._base_address}/{self._org_name}/{context.project_name}/_apis/git/repositories/{context.repository_name}/pullrequests?api-version=7.1-preview.1&$top=1000&searchCriteria.status=All&searchCriteria.minTime=2024-03-01T00:00:00Z&searchCriteria.maxTime=2024-09-0410T00:00:00Z"
+        url = (f"{self._base_address}/{self._org_name}/{context.project_name}"
+               f"/_apis/git/repositories/"
+               f"{context.repository_name}"
+               f"/pullrequests?api-version=7.1-preview.1&"
+               f"$top=1000&"
+               f"searchCriteria.status=All&"
+               f"searchCriteria.minTime=2024-03-01T00:00:00Z&"
+               f"searchCriteria.maxTime=2024-09-0410T00:00:00Z")
+
         return await self._make_request(url)
 
     async def _make_request(self, url: str):
@@ -70,6 +83,7 @@ class AdoService:
         except aiohttp.ClientError as e:
             raise AdoServiceException(f"ADO REST API request failed") from e
 
+
 async def main():
     import os
     from dotenv import load_dotenv
@@ -79,13 +93,13 @@ async def main():
     http_timeout = os.getenv("ADO__HTTP_TIMEOUT_SECONDS")
 
     if http_timeout is None:
-        http_timeout=60
+        http_timeout = 60
 
     ado_service_config = AdoServiceConfiguration(
         base_address=os.getenv("ADO__BASE_ADDRESS"),
         organization_name=os.getenv("ADO__ORG"),
         personal_access_token=os.getenv("ADO__PAT"),
-        http_timeout = http_timeout,
+        http_timeout=http_timeout,
     )
 
     repository_context = RepositoryContext(
@@ -107,4 +121,5 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(main())
