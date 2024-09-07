@@ -1,8 +1,12 @@
+from datetime import datetime, timezone
+
 import aiohttp
 import tenacity
 from aiohttp import ClientTimeout
 from aiohttp.client_exceptions import ClientConnectionError, ClientResponseError, ServerTimeoutError
-from pydantic import BaseModel, ValidationError, HttpUrl, SecretStr
+from dateutil.parser import isoparse
+from dateutil.relativedelta import relativedelta
+from pydantic import BaseModel, ValidationError, HttpUrl, SecretStr, field_validator
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 
@@ -33,6 +37,20 @@ class RepositoryContext(BaseModel):
     repository_name: str
     project_name: str
 
+class PullRequestQueryParameters(BaseModel):
+    top: int = 1000
+    minTime: str
+    maxTime: str
+
+    @field_validator('minTime', 'maxTime')
+    @classmethod
+    def check_iso8601_format(cls, value):
+        try:
+            isoparse(value)
+        except ValueError as e:
+            raise AdoServiceValidationException(f"{value} is not in ISO-8601 format") from e
+        return value
+
 
 class AdoService:
     def __init__(self, config: AdoServiceConfiguration):
@@ -56,20 +74,28 @@ class AdoService:
         url = f"{self._base_address}/{self._org_name}/_apis/projects?api-version=7.1-preview.1"
         return await self._make_request(url)
 
-    async def get_pull_requests(self, context: RepositoryContext):
+    async def get_pull_requests(
+            self,
+            context: RepositoryContext,
+            queryParams: PullRequestQueryParameters):
         try:
             RepositoryContext.model_validate(context)
         except ValidationError as e:
             raise AdoServiceValidationException("RepositoryContext validation failed") from e
 
+        try:
+            PullRequestQueryParameters.model_validate(queryParams)
+        except ValidationError as e:
+            raise AdoServiceValidationException("PullRequestQueryParameters validation failed") from e
+
         url = (f"{self._base_address}/{self._org_name}/{context.project_name}"
                f"/_apis/git/repositories/"
                f"{context.repository_name}"
                f"/pullrequests?api-version=7.1-preview.1&"
-               f"$top=1000&"
+               f"$top={queryParams.top}&"
                f"searchCriteria.status=All&"
-               f"searchCriteria.minTime=2024-03-01T00:00:00Z&"
-               f"searchCriteria.maxTime=2024-09-0410T00:00:00Z")
+               f"searchCriteria.minTime={queryParams.minTime}&"
+               f"searchCriteria.maxTime={queryParams.maxTime}")
 
         return await self._make_request(url)
 
@@ -119,17 +145,27 @@ async def main():
         project_name=os.getenv("ADO__PROJECT"),
     )
 
+    current_utc_time = datetime.now(timezone.utc)
+    min_time = current_utc_time - relativedelta(months=6)
+    max_time = current_utc_time
+
+    pull_request_query_parameters = PullRequestQueryParameters(
+        minTime=min_time.isoformat().replace("+00:00", "Z"),
+        maxTime=max_time.isoformat().replace("+00:00", "Z"),
+    )
+
     async with AdoService(ado_service_config) as ado_service:
         tasks = [
             ado_service.get_projects(),
-            ado_service.get_pull_requests(repository_context),
+            ado_service.get_pull_requests(
+                repository_context,
+                pull_request_query_parameters),
         ]
 
         results = await asyncio.gather(*tasks)
 
         for result in results:
             print(f"Task completed with result: {result}")
-
 
 if __name__ == "__main__":
     import asyncio
