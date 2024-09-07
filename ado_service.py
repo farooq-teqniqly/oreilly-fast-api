@@ -1,6 +1,9 @@
 import aiohttp
+import tenacity
 from aiohttp import ClientTimeout
+from aiohttp.client_exceptions import ClientConnectionError, ClientResponseError, ServerTimeoutError
 from pydantic import BaseModel, ValidationError, HttpUrl, SecretStr
+from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 
 class AdoServiceException(Exception):
@@ -70,19 +73,28 @@ class AdoService:
 
         return await self._make_request(url)
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential_jitter(jitter=1, initial=4, max=10),
+           retry=(tenacity.retry_if_exception_type(ClientConnectionError) |
+                  tenacity.retry_if_exception_type(ServerTimeoutError)))
     async def _make_request(self, url: str):
         try:
-            async with self._http_session.get(url) as response:
+            async with self._http_session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
                 if response.status == 203:
                     raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
                 if response.status == 404:
                     raise AdoServiceInvalidUrlException("ADO REST API URL might be incorrect.")
                 if response.status != 200:
                     raise AdoServiceException(f"ADO REST API request failed with status: {response.status}")
-                return await response.json()
-        except aiohttp.ClientError as e:
-            raise AdoServiceException(f"ADO REST API request failed") from e
 
+                return await response.json()
+        except ClientResponseError as e:
+            raise AdoServiceException(f"ADO REST API request failed with status: {e.status}") from e
+        except ClientConnectionError as e:
+            raise AdoServiceException("ADO REST API request failed due to connection issues") from e
+        except ServerTimeoutError as e:
+            raise AdoServiceException("ADO REST API request timed out") from e
+        except aiohttp.ClientError as e:
+            raise AdoServiceException("ADO REST API request failed due to client error") from e
 
 async def main():
     import os
