@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 import aiohttp
@@ -13,6 +14,8 @@ from dateutil.relativedelta import relativedelta
 from pydantic import BaseModel, HttpUrl, SecretStr, ValidationError, field_validator
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class AdoServiceError(Exception):
     pass
@@ -187,8 +190,8 @@ async def main():
     max_time = current_utc_time
 
     pull_request_query_parameters = PullRequestQueryParameters(
-        minTime=min_time.isoformat().replace("+00:00", "Z"),
-        maxTime=max_time.isoformat().replace("+00:00", "Z"),
+        min_time=min_time.isoformat().replace("+00:00", "Z"),
+        max_time=max_time.isoformat().replace("+00:00", "Z"),
     )
 
     async with AdoService(ado_service_config) as ado_service:
@@ -202,7 +205,7 @@ async def main():
         results = await asyncio.gather(*tasks)
 
         for result in results:
-            print(f"Task completed with result: {result}")
+            logger.info(f"Task completed with result: {result}")
 
 if __name__ == "__main__":
     import asyncio
