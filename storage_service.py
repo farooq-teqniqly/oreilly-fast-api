@@ -61,9 +61,8 @@ class StorageService:
             await container_client.create_container()
 
         blob_client = container_client.get_blob_client(context.blob_name)
-        upload_result = await blob_client.upload_blob(context.content, overwrite=True)
 
-        return upload_result
+        return await blob_client.upload_blob(context.content, overwrite=True)
 
     async def list_blobs(self, container_name: str):
         if container_name is None:
@@ -79,16 +78,18 @@ class StorageService:
 async def main():
     import json
     import os
+
     from dotenv import load_dotenv
 
     load_dotenv()
     try:
-        async with StorageService(os.getenv("AZURE_BLOB_CONNECTION_STRING")) as storage_service:
+        async with (StorageService(os.getenv("AZURE_BLOB_CONNECTION_STRING"))
+                    as storage_service):
             container_name = "pythontest"
 
             dct = {
                 "name": "Bubba",
-                "age": 77
+                "age": 77,
             }
 
             blob_content = json.dumps(dct)
@@ -100,7 +101,9 @@ async def main():
                     container_name=container_name,
                 )
             except ValidationError as e:
-                raise StorageServiceValidationException("BlobUploadContext validation failure") from e
+                raise StorageServiceValidationError(
+                    ErrorMessages.VALIDATION_ERROR(
+                        class_name="BlobUploadContext")) from e
 
             upload_result = await storage_service.upload_string(upload_context)
 
@@ -109,7 +112,7 @@ async def main():
 
             async for blob in blobs:
                 print(blob)
-    except Exception as e:
+    except Exception:
         raise
 
 if __name__ == "__main__":
