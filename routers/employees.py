@@ -1,6 +1,6 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, Path, Response, status
 
+from fastapi import APIRouter, HTTPException, Path, status
 from models import AddEmployeeModel, EmployeeModel
 
 router = APIRouter()
@@ -21,7 +21,6 @@ async def get_employee_by_id(id: int=Path(
     le=999,
     title="Employee ID",
     description="ID of the employee",)):
-    name = "Bob"
     matching_employees = [employee for employee in employees if employee["id"] == id]
     
     if matching_employees:
