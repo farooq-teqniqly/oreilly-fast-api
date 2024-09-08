@@ -15,17 +15,20 @@ employees = [
         {"id": 202, "name": "Charlie", "is_active": True},
     ]
 
-@router.get("/{id}", response_model=EmployeeModel, responses={404: {"description": "Employee not found"}})
+@router.get(
+    "/{id}",
+    response_model=EmployeeModel,
+    responses={404: {"description": "Employee not found"}})
 async def get_employee_by_id(id: int=Path(
-    ge=101, 
+    ge=101,
     le=999,
     title="Employee ID",
     description="ID of the employee",)):
     matching_employees = [employee for employee in employees if employee["id"] == id]
-    
+
     if matching_employees:
         return matching_employees[0]
-    
+
     raise HTTPException(status_code=404, detail=f"Employee with id {id} not found")
 
 
@@ -34,7 +37,10 @@ async def get_employee_by_id(id: int=Path(
 async def get_employees(is_active: bool=False):
     return [employee for employee in employees if employee["is_active"] == is_active]
 
-@router.post("/", response_model=List[EmployeeModel], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=List[EmployeeModel],
+    status_code=status.HTTP_201_CREATED)
 async def add_employee(employee:AddEmployeeModel):
     employees.append(employee.model_dump())
     return employee

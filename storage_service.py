@@ -29,7 +29,8 @@ class StorageService:
         self._blob_service_client = None
 
     async def __aenter__(self):
-        self._blob_service_client = BlobServiceClient.from_connection_string(self._connection_string)
+        self._blob_service_client = BlobServiceClient.from_connection_string(
+            self._connection_string)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -39,9 +40,11 @@ class StorageService:
         try:
             context.model_validate(context)
         except ValidationError as e:
-            raise StorageServiceValidationException("BlobUploadContext validation failure") from e
+            raise StorageServiceValidationException(
+                "BlobUploadContext validation failure") from e
 
-        container_client = self._blob_service_client.get_container_client(context.container_name)
+        container_client = self._blob_service_client.get_container_client(
+            context.container_name)
 
         if not await container_client.exists():
             await container_client.create_container()
@@ -55,7 +58,8 @@ class StorageService:
         if container_name is None:
             raise StorageServiceArgumentException("Specify a container name")
 
-        container_client = self._blob_service_client.get_container_client(container_name)
+        container_client = self._blob_service_client.get_container_client(
+            container_name)
 
         async for blob in container_client.list_blobs():
             yield blob

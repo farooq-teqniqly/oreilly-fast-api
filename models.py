@@ -12,7 +12,7 @@ class EmployeeModel(BaseModel):
                 "is_active": True
             }
         }
-        
+
 class AddEmployeeModel(BaseModel):
     id: int
     name: str

@@ -3,7 +3,8 @@ from datetime import datetime, timezone
 import aiohttp
 import tenacity
 from aiohttp import ClientTimeout
-from aiohttp.client_exceptions import ClientConnectionError, ClientResponseError, ServerTimeoutError
+from aiohttp.client_exceptions import (ClientConnectionError, ClientResponseError,
+                                       ServerTimeoutError)
 from dateutil.parser import isoparse
 from dateutil.relativedelta import relativedelta
 from pydantic import BaseModel, ValidationError, HttpUrl, SecretStr, field_validator
@@ -48,7 +49,8 @@ class PullRequestQueryParameters(BaseModel):
         try:
             isoparse(value)
         except ValueError as e:
-            raise AdoServiceValidationException(f"{value} is not in ISO-8601 format") from e
+            raise AdoServiceValidationException(f"{value} is not in ISO-8601 format") \
+                from e
         return value
 
 
@@ -57,12 +59,16 @@ class AdoService:
         try:
             AdoServiceConfiguration.model_validate(config)
         except ValidationError as e:
-            raise AdoServiceValidationException("AdoServiceConfiguration validation failed") from e
+            raise AdoServiceValidationException(
+                "AdoServiceConfiguration validation failed") from e
 
         self._base_address = config.base_address
         self._org_name = config.organization_name
         auth = aiohttp.BasicAuth("", config.personal_access_token.get_secret_value())
-        self._http_session = aiohttp.ClientSession(auth=auth, timeout=ClientTimeout(config.http_timeout))
+
+        self._http_session = aiohttp.ClientSession(
+            auth=auth,
+            timeout=ClientTimeout(config.http_timeout))
 
     async def __aenter__(self):
         return self
@@ -71,7 +77,10 @@ class AdoService:
         await self._http_session.close()
 
     async def get_projects(self):
-        url = f"{self._base_address}/{self._org_name}/_apis/projects?api-version=7.1-preview.1"
+        url = (f"{self._base_address}/"
+               f"{self._org_name}/"
+               f"_apis/projects?api-version=7.1-preview.1")
+
         return await self._make_request(url)
 
     async def get_pull_requests(
@@ -81,12 +90,14 @@ class AdoService:
         try:
             RepositoryContext.model_validate(context)
         except ValidationError as e:
-            raise AdoServiceValidationException("RepositoryContext validation failed") from e
+            raise AdoServiceValidationException("RepositoryContext validation failed") \
+                from e
 
         try:
             PullRequestQueryParameters.model_validate(queryParams)
         except ValidationError as e:
-            raise AdoServiceValidationException("PullRequestQueryParameters validation failed") from e
+            raise AdoServiceValidationException(
+                "PullRequestQueryParameters validation failed") from e
 
         url = (f"{self._base_address}/{self._org_name}/{context.project_name}"
                f"/_apis/git/repositories/"
@@ -99,28 +110,38 @@ class AdoService:
 
         return await self._make_request(url)
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential_jitter(jitter=1, initial=4, max=10),
+    @retry(stop=stop_after_attempt(3),
+           wait=wait_exponential_jitter(jitter=1, initial=4, max=10),
            retry=(tenacity.retry_if_exception_type(ClientConnectionError) |
                   tenacity.retry_if_exception_type(ServerTimeoutError)))
     async def _make_request(self, url: str):
         try:
-            async with self._http_session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
+            async with self._http_session.get(
+                    url,
+                    timeout=aiohttp.ClientTimeout(total=10)) as response:
+
                 if response.status == 203:
-                    raise AdoServiceInvalidPATException("Personal Access Token might be incorrect.")
+                    raise AdoServiceInvalidPATException(
+                        "Personal Access Token might be incorrect.")
                 if response.status == 404:
-                    raise AdoServiceInvalidUrlException("ADO REST API URL might be incorrect.")
+                    raise AdoServiceInvalidUrlException(
+                        "ADO REST API URL might be incorrect.")
                 if response.status != 200:
-                    raise AdoServiceException(f"ADO REST API request failed with status: {response.status}")
+                    raise AdoServiceException(
+                        f"ADO REST API request failed with status: {response.status}")
 
                 return await response.json()
         except ClientResponseError as e:
-            raise AdoServiceException(f"ADO REST API request failed with status: {e.status}") from e
+            raise AdoServiceException(
+                f"ADO REST API request failed with status: {e.status}") from e
         except ClientConnectionError as e:
-            raise AdoServiceException("ADO REST API request failed due to connection issues") from e
+            raise AdoServiceException(
+                "ADO REST API request failed due to connection issues") from e
         except ServerTimeoutError as e:
             raise AdoServiceException("ADO REST API request timed out") from e
         except aiohttp.ClientError as e:
-            raise AdoServiceException("ADO REST API request failed due to client error") from e
+            raise AdoServiceException(
+                "ADO REST API request failed due to client error") from e
 
 async def main():
     import os
