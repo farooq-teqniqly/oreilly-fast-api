@@ -19,7 +19,6 @@ class StorageServiceValidationError(StorageServiceError):
 
 
 class BlobUploadContext(BaseModel):
-    content: str
     blob_name: str
     container_name: str
 
@@ -50,7 +49,7 @@ class StorageService:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._blob_service_client.close()
 
-    async def upload_string(self, context: BlobUploadContext):
+    async def upload_string(self, content: str, context: BlobUploadContext):
         try:
             BlobUploadContext.model_validate(context)
         except ValidationError as e:
@@ -66,7 +65,7 @@ class StorageService:
 
         blob_client = container_client.get_blob_client(context.blob_name)
 
-        return await blob_client.upload_blob(context.content, overwrite=True)
+        return await blob_client.upload_blob(content, overwrite=True)
 
     async def list_blobs(self, container_name: str):
         if container_name is None:
@@ -78,48 +77,3 @@ class StorageService:
 
         async for blob in container_client.list_blobs():
             yield blob
-
-async def main():
-    import json
-    import os
-
-    from dotenv import load_dotenv
-
-    load_dotenv()
-    try:
-        async with (StorageService(os.getenv("AZURE_BLOB_CONNECTION_STRING"))
-                    as storage_service):
-            container_name = "pythontest"
-
-            dct = {
-                "name": "Bubba",
-                "age": 77,
-            }
-
-            blob_content = json.dumps(dct)
-
-            try:
-                upload_context = BlobUploadContext(
-                    content=blob_content,
-                    blob_name="bubba",
-                    container_name=container_name,
-                )
-            except ValidationError as e:
-                raise StorageServiceValidationError(
-                    ErrorMessages.VALIDATION_ERROR(
-                        class_name="BlobUploadContext")) from e
-
-            upload_result = await storage_service.upload_string(upload_context)
-
-            logger.info(upload_result)
-
-            blobs = storage_service.list_blobs(container_name)
-
-            async for blob in blobs:
-                logger.info(blob)
-    except Exception:
-        raise
-
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())

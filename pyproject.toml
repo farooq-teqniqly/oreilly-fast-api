@@ -1,2 +1,2 @@
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "N", "COM", "Q", "EM", "RET", "T"]
+select = ["E", "W", "F", "I", "N", "COM", "Q", "EM", "RET", "T", "PT"]
