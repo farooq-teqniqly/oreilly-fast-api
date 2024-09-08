@@ -1,6 +1,10 @@
+import logging
+
 from azure.storage.blob.aio import BlobServiceClient, ExponentialRetry
 from pydantic import BaseModel, ValidationError
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class StorageServiceError(Exception):
     pass
@@ -107,11 +111,12 @@ async def main():
 
             upload_result = await storage_service.upload_string(upload_context)
 
-            print(upload_result)
+            logger.info(upload_result)
+
             blobs = storage_service.list_blobs(container_name)
 
             async for blob in blobs:
-                print(blob)
+                logger.info(blob)
     except Exception:
         raise
 
