@@ -1,4 +1,4 @@
-from azure.storage.blob.aio import BlobServiceClient
+from azure.storage.blob.aio import BlobServiceClient, ExponentialRetry
 from pydantic import BaseModel, ValidationError
 
 
@@ -30,11 +30,17 @@ class StorageService:
             raise StorageServiceArgumentError(ErrorMessages.MISSING_CONNECTION_STRING)
 
         self._connection_string = connection_string
-        self._blob_service_client = None
+
+        retry_policy = ExponentialRetry(
+            initial_backoff=10,
+            increment_base=4,
+            retry_total=3)
+
+        self._blob_service_client = BlobServiceClient.from_connection_string(
+            self._connection_string,
+            retry_policy=retry_policy)
 
     async def __aenter__(self):
-        self._blob_service_client = BlobServiceClient.from_connection_string(
-            self._connection_string)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -69,3 +75,43 @@ class StorageService:
 
         async for blob in container_client.list_blobs():
             yield blob
+
+async def main():
+    import json
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    try:
+        async with StorageService(os.getenv("AZURE_BLOB_CONNECTION_STRING")) as storage_service:
+            container_name = "pythontest"
+
+            dct = {
+                "name": "Bubba",
+                "age": 77
+            }
+
+            blob_content = json.dumps(dct)
+
+            try:
+                upload_context = BlobUploadContext(
+                    content=blob_content,
+                    blob_name="bubba",
+                    container_name=container_name,
+                )
+            except ValidationError as e:
+                raise StorageServiceValidationException("BlobUploadContext validation failure") from e
+
+            upload_result = await storage_service.upload_string(upload_context)
+
+            print(upload_result)
+            blobs = storage_service.list_blobs(container_name)
+
+            async for blob in blobs:
+                print(blob)
+    except Exception as e:
+        raise
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
