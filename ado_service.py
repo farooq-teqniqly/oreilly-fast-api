@@ -46,7 +46,7 @@ class PullRequestQueryParameters(BaseModel):
     min_time: str
     max_time: str
 
-    @field_validator('min_time', 'max_time')
+    @field_validator("min_time", "max_time")
     @classmethod
     def check_iso8601_format(cls, value):
         try:
