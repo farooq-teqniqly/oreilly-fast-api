@@ -19,11 +19,15 @@ class BlobUploadContext(BaseModel):
     blob_name: str
     container_name: str
 
+class ErrorMessages:
+    MISSING_CONNECTION_STRING="Specify a connection string"
+    MISSING_CONTAINER_NAME="Specify a container name"
+    VALIDATION_ERROR="{class_name} validation failure"
 
 class StorageService:
     def __init__(self, connection_string: str):
         if connection_string is None:
-            raise StorageServiceArgumentError("Specify a connection string")
+            raise StorageServiceArgumentError(ErrorMessages.MISSING_CONNECTION_STRING)
 
         self._connection_string = connection_string
         self._blob_service_client = None
@@ -41,7 +45,8 @@ class StorageService:
             context.model_validate(context)
         except ValidationError as e:
             raise StorageServiceValidationError(
-                "BlobUploadContext validation failure") from e
+                ErrorMessages.VALIDATION_ERROR.format(
+                    class_name=BlobUploadContext)) from e
 
         container_client = self._blob_service_client.get_container_client(
             context.container_name)
@@ -56,7 +61,8 @@ class StorageService:
 
     async def list_blobs(self, container_name: str):
         if container_name is None:
-            raise StorageServiceArgumentError("Specify a container name")
+            raise StorageServiceArgumentError(
+                ErrorMessages.MISSING_CONTAINER_NAME)
 
         container_client = self._blob_service_client.get_container_client(
             container_name)
