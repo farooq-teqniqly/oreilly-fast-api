@@ -3,11 +3,14 @@ from datetime import datetime, timezone
 import aiohttp
 import tenacity
 from aiohttp import ClientTimeout
-from aiohttp.client_exceptions import (ClientConnectionError, ClientResponseError,
-                                       ServerTimeoutError)
+from aiohttp.client_exceptions import (
+    ClientConnectionError,
+    ClientResponseError,
+    ServerTimeoutError,
+)
 from dateutil.parser import isoparse
 from dateutil.relativedelta import relativedelta
-from pydantic import BaseModel, ValidationError, HttpUrl, SecretStr, field_validator
+from pydantic import BaseModel, HttpUrl, SecretStr, ValidationError, field_validator
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 
@@ -145,6 +148,7 @@ class AdoService:
 
 async def main():
     import os
+
     from dotenv import load_dotenv
 
     load_dotenv()
