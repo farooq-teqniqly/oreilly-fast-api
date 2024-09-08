@@ -14,19 +14,19 @@ from pydantic import BaseModel, HttpUrl, SecretStr, ValidationError, field_valid
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 
-class AdoServiceException(Exception):
+class AdoServiceError(Exception):
     pass
 
 
-class AdoServiceInvalidPATException(AdoServiceException):
+class AdoServiceInvalidPATError(AdoServiceError):
     pass
 
 
-class AdoServiceInvalidUrlException(AdoServiceException):
+class AdoServiceInvalidUrlError(AdoServiceError):
     pass
 
 
-class AdoServiceValidationException(AdoServiceException):
+class AdoServiceValidationError(AdoServiceError):
     pass
 
 
@@ -43,16 +43,16 @@ class RepositoryContext(BaseModel):
 
 class PullRequestQueryParameters(BaseModel):
     top: int = 1000
-    minTime: str
-    maxTime: str
+    min_time: str
+    max_time: str
 
-    @field_validator('minTime', 'maxTime')
+    @field_validator('min_time', 'max_time')
     @classmethod
     def check_iso8601_format(cls, value):
         try:
             isoparse(value)
         except ValueError as e:
-            raise AdoServiceValidationException(f"{value} is not in ISO-8601 format") \
+            raise AdoServiceValidationError(f"{value} is not in ISO-8601 format") \
                 from e
         return value
 
@@ -62,7 +62,7 @@ class AdoService:
         try:
             AdoServiceConfiguration.model_validate(config)
         except ValidationError as e:
-            raise AdoServiceValidationException(
+            raise AdoServiceValidationError(
                 "AdoServiceConfiguration validation failed") from e
 
         self._base_address = config.base_address
@@ -89,27 +89,27 @@ class AdoService:
     async def get_pull_requests(
             self,
             context: RepositoryContext,
-            queryParams: PullRequestQueryParameters):
+            query_params: PullRequestQueryParameters):
         try:
             RepositoryContext.model_validate(context)
         except ValidationError as e:
-            raise AdoServiceValidationException("RepositoryContext validation failed") \
+            raise AdoServiceValidationError("RepositoryContext validation failed") \
                 from e
 
         try:
-            PullRequestQueryParameters.model_validate(queryParams)
+            PullRequestQueryParameters.model_validate(query_params)
         except ValidationError as e:
-            raise AdoServiceValidationException(
+            raise AdoServiceValidationError(
                 "PullRequestQueryParameters validation failed") from e
 
         url = (f"{self._base_address}/{self._org_name}/{context.project_name}"
                f"/_apis/git/repositories/"
                f"{context.repository_name}"
                f"/pullrequests?api-version=7.1-preview.1&"
-               f"$top={queryParams.top}&"
+               f"$top={query_params.top}&"
                f"searchCriteria.status=All&"
-               f"searchCriteria.minTime={queryParams.minTime}&"
-               f"searchCriteria.maxTime={queryParams.maxTime}")
+               f"searchCriteria.minTime={query_params.min_time}&"
+               f"searchCriteria.maxTime={query_params.max_time}")
 
         return await self._make_request(url)
 
@@ -124,26 +124,26 @@ class AdoService:
                     timeout=aiohttp.ClientTimeout(total=10)) as response:
 
                 if response.status == 203:
-                    raise AdoServiceInvalidPATException(
+                    raise AdoServiceInvalidPATError(
                         "Personal Access Token might be incorrect.")
                 if response.status == 404:
-                    raise AdoServiceInvalidUrlException(
+                    raise AdoServiceInvalidUrlError(
                         "ADO REST API URL might be incorrect.")
                 if response.status != 200:
-                    raise AdoServiceException(
+                    raise AdoServiceError(
                         f"ADO REST API request failed with status: {response.status}")
 
                 return await response.json()
         except ClientResponseError as e:
-            raise AdoServiceException(
+            raise AdoServiceError(
                 f"ADO REST API request failed with status: {e.status}") from e
         except ClientConnectionError as e:
-            raise AdoServiceException(
+            raise AdoServiceError(
                 "ADO REST API request failed due to connection issues") from e
         except ServerTimeoutError as e:
-            raise AdoServiceException("ADO REST API request timed out") from e
+            raise AdoServiceError("ADO REST API request timed out") from e
         except aiohttp.ClientError as e:
-            raise AdoServiceException(
+            raise AdoServiceError(
                 "ADO REST API request failed due to client error") from e
 
 async def main():

@@ -10,8 +10,8 @@ class EmployeeModel(BaseModel):
             "example": {
                 "id": 200,
                 "name": "Bob",
-                "is_active": True
-            }
+                "is_active": True,
+            },
         }
 
 class AddEmployeeModel(BaseModel):
@@ -23,6 +23,6 @@ class AddEmployeeModel(BaseModel):
             "example": {
                 "id": 200,
                 "name": "Bob",
-                "is_active": True
-            }
+                "is_active": True,
+            },
         }

@@ -2,15 +2,15 @@ from azure.storage.blob.aio import BlobServiceClient
 from pydantic import BaseModel, ValidationError
 
 
-class StorageServiceException(Exception):
+class StorageServiceError(Exception):
     pass
 
 
-class StorageServiceArgumentException(StorageServiceException):
+class StorageServiceArgumentError(StorageServiceError):
     pass
 
 
-class StorageServiceValidationException(StorageServiceException):
+class StorageServiceValidationError(StorageServiceError):
     pass
 
 
@@ -23,7 +23,7 @@ class BlobUploadContext(BaseModel):
 class StorageService:
     def __init__(self, connection_string: str):
         if connection_string is None:
-            raise StorageServiceArgumentException("Specify a connection string")
+            raise StorageServiceArgumentError("Specify a connection string")
 
         self._connection_string = connection_string
         self._blob_service_client = None
@@ -40,7 +40,7 @@ class StorageService:
         try:
             context.model_validate(context)
         except ValidationError as e:
-            raise StorageServiceValidationException(
+            raise StorageServiceValidationError(
                 "BlobUploadContext validation failure") from e
 
         container_client = self._blob_service_client.get_container_client(
@@ -56,7 +56,7 @@ class StorageService:
 
     async def list_blobs(self, container_name: str):
         if container_name is None:
-            raise StorageServiceArgumentException("Specify a container name")
+            raise StorageServiceArgumentError("Specify a container name")
 
         container_client = self._blob_service_client.get_container_client(
             container_name)

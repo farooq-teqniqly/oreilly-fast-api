@@ -23,7 +23,7 @@ async def get_employee_by_id(id: int=Path(
     ge=101,
     le=999,
     title="Employee ID",
-    description="ID of the employee",)):
+    description="ID of the employee")):
     matching_employees = [employee for employee in employees if employee["id"] == id]
 
     if matching_employees:
