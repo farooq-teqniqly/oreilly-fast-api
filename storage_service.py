@@ -42,7 +42,7 @@ class StorageService:
 
     async def upload_string(self, context: BlobUploadContext):
         try:
-            context.model_validate(context)
+            BlobUploadContext.model_validate(context)
         except ValidationError as e:
             raise StorageServiceValidationError(
                 ErrorMessages.VALIDATION_ERROR.format(
